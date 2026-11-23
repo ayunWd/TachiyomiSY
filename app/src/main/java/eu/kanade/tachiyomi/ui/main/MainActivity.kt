@@ -54,8 +54,6 @@ import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.Navigator
 import cafe.adriel.voyager.navigator.NavigatorDisposeBehavior
 import cafe.adriel.voyager.navigator.currentOrThrow
-import com.google.firebase.Firebase
-import com.google.firebase.analytics.analytics
 import dev.zacsweers.metro.Inject
 import eu.kanade.core.preference.asState
 import eu.kanade.domain.base.BasePreferences
@@ -89,7 +87,6 @@ import eu.kanade.tachiyomi.ui.setting.SettingsScreen
 import eu.kanade.tachiyomi.util.system.dpToPx
 import eu.kanade.tachiyomi.util.system.isBenchmarkBuildType
 import eu.kanade.tachiyomi.util.system.isNavigationBarNeedsScrim
-import eu.kanade.tachiyomi.util.system.isPreviewBuildType
 import eu.kanade.tachiyomi.util.view.setComposeContent
 import exh.debug.DebugToggles
 import exh.debug.asPref
@@ -99,7 +96,6 @@ import exh.source.BlacklistedSources
 import exh.source.EH_SOURCE_ID
 import exh.source.EXH_SOURCE_ID
 import exh.source.ExhPreferences
-import exh.syDebugVersion
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
@@ -203,9 +199,6 @@ class MainActivity : BaseActivity() {
 
         super.onCreate(savedInstanceState)
 
-        if (isLaunch) {
-            addAnalytics()
-        }
         lifecycleScope.launch {
             // SY -->
             val migrated = Migrator.awaitAndRelease()
@@ -641,14 +634,6 @@ class MainActivity : BaseActivity() {
         return (scheme == "tachiyomi" && data?.host == "add-repo") ||
             (scheme == "mihon" && data?.host == "extension-store")
     }
-
-    // SY -->
-    private fun addAnalytics() {
-        if (!BuildConfig.DEBUG && isPreviewBuildType) {
-            Firebase.analytics.setUserProperty("preview_version", syDebugVersion)
-        }
-    }
-    // SY <--
 
     companion object {
         const val INTENT_SEARCH = "eu.kanade.tachiyomi.SEARCH"

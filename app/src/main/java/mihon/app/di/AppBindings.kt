@@ -11,7 +11,6 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.protobuf.ProtoBuf
 import logcat.LogPriority
-import mihon.core.firebase.FirebaseConfig
 import mihon.core.metro.AppCoroutineScope
 import mihon.core.metro.IsDebugBuild
 import nl.adaptivity.xmlutil.XmlDeclMode
@@ -34,9 +33,6 @@ object AppBindings {
                 thread.uncaughtExceptionHandler?.uncaughtException(thread, throwable)
             } else {
                 logcat(LogPriority.ERROR, throwable) { "Uncaught exception in the app scope" }
-                // SY -->
-                FirebaseConfig.recordException(throwable)
-                // SY <--
             }
         }
         return CoroutineScope(SupervisorJob() + Dispatchers.IO + handler)

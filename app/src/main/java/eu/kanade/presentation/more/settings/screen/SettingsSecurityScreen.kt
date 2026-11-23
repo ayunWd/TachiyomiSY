@@ -42,7 +42,6 @@ import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import dev.icerock.moko.resources.StringResource
 import eu.kanade.presentation.more.settings.Preference
-import eu.kanade.tachiyomi.core.security.PrivacyPreferences
 import eu.kanade.tachiyomi.core.security.SecurityPreferences
 import eu.kanade.tachiyomi.ui.base.delegate.SecureActivityDelegate
 import eu.kanade.tachiyomi.ui.category.biometric.BiometricTimesScreen
@@ -70,12 +69,10 @@ object SettingsSecurityScreen : SearchableSettings {
     override fun getPreferences(): List<Preference> {
         val context = LocalContext.current
         val securityPreferences = remember { context.appGraph.securityPreferences }
-        val privacyPreferences = remember { context.appGraph.privacyPreferences }
         // SY -->
         val cbzCrypto = remember { context.appGraph.cbzCrypto }
         return listOf(
             getSecurityGroup(securityPreferences, cbzCrypto),
-            getFirebaseGroup(privacyPreferences),
         )
         // SY <--
     }
@@ -379,27 +376,6 @@ object SettingsSecurityScreen : SearchableSettings {
     }
     // SY <--
 
-    @Composable
-    private fun getFirebaseGroup(
-        privacyPreferences: PrivacyPreferences,
-    ): Preference.PreferenceGroup {
-        return Preference.PreferenceGroup(
-            title = stringResource(MR.strings.pref_firebase),
-            preferenceItems = listOf(
-                Preference.PreferenceItem.SwitchPreference(
-                    preference = privacyPreferences.crashlytics,
-                    title = stringResource(MR.strings.onboarding_permission_crashlytics),
-                    subtitle = stringResource(MR.strings.onboarding_permission_crashlytics_description),
-                ),
-                Preference.PreferenceItem.SwitchPreference(
-                    preference = privacyPreferences.analytics,
-                    title = stringResource(MR.strings.onboarding_permission_analytics),
-                    subtitle = stringResource(MR.strings.onboarding_permission_analytics_description),
-                ),
-                Preference.PreferenceItem.InfoPreference(stringResource(MR.strings.firebase_summary)),
-            ),
-        )
-    }
 }
 
 private val LockAfterValues = listOf(

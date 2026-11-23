@@ -36,7 +36,6 @@ import eu.kanade.domain.base.BasePreferences
 import eu.kanade.domain.sync.SyncPreferences
 import eu.kanade.domain.ui.UiPreferences
 import eu.kanade.domain.ui.model.setAppCompatDelegateThemeMode
-import eu.kanade.tachiyomi.core.security.PrivacyPreferences
 import eu.kanade.tachiyomi.crash.CrashActivity
 import eu.kanade.tachiyomi.crash.GlobalExceptionHandler
 import eu.kanade.tachiyomi.data.cache.CoverCache
@@ -64,7 +63,6 @@ import eu.kanade.tachiyomi.util.system.animatorDurationScale
 import eu.kanade.tachiyomi.util.system.cancelNotification
 import eu.kanade.tachiyomi.util.system.isDebugBuildType
 import eu.kanade.tachiyomi.util.system.notify
-import exh.log.CrashlyticsPrinter
 import exh.log.EHLogLevel
 import exh.log.EnhancedFilePrinter
 import exh.log.XLogLogcatLogger
@@ -78,7 +76,6 @@ import logcat.LogPriority
 import logcat.LogcatLogger
 import mihon.app.di.AppGraph
 import mihon.app.di.injekt.MetroInjektRegistrar
-import mihon.core.firebase.FirebaseConfig
 import mihon.core.metro.AppCoroutineScope
 import mihon.core.metro.GraphProvider
 import mihon.core.migration.Migration
@@ -109,8 +106,6 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
     @Inject private lateinit var preferenceStore: PreferenceStore
 
     @Inject private lateinit var basePreferences: BasePreferences
-
-    @Inject private lateinit var privacyPreferences: PrivacyPreferences
 
     @Inject private lateinit var networkPreferences: NetworkPreferences
 
@@ -147,14 +142,6 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
     @SuppressLint("LaunchActivityFromNotification")
     override fun onCreate() {
         super<Application>.onCreate()
-        // SY -->
-        try {
-            FirebaseConfig.init(applicationContext)
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-        // SY <--
-
         // Must run before the graph is built, since injecting dependencies initializes WebView and the
         // suffix can't be set once a provider exists in the process. Secondary processes die otherwise.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
@@ -215,16 +202,6 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
                     cancelNotification(Notifications.ID_INCOGNITO_MODE)
                 }
             }
-            .launchIn(scope)
-
-        privacyPreferences.analytics
-            .changes()
-            .onEach(/* SY --> */ FirebaseConfig::setAnalyticsEnabled /* SY <-- */)
-            .launchIn(scope)
-
-        privacyPreferences.crashlytics
-            .changes()
-            .onEach(/* SY --> */ FirebaseConfig::setCrashlyticsEnabled /* SY <-- */)
             .launchIn(scope)
 
         setAppCompatDelegateThemeMode(uiPreferences.themeMode.get())
@@ -395,11 +372,6 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
                     }
                     backupStrategy = NeverBackupStrategy()
                 }
-        }
-
-        // Install Crashlytics in prod
-        if (!BuildConfig.DEBUG) {
-            printers += CrashlyticsPrinter(LogLevel.ERROR)
         }
 
         XLog.init(

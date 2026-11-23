@@ -22,13 +22,6 @@ plugins {
     id("com.github.ben-manes.versions")
 }
 
-if (gradle.startParameter.taskRequests.toString().contains("Release")) {
-    pluginManager.apply {
-        apply(libs.plugins.google.services.get().pluginId)
-        apply(libs.plugins.firebase.crashlytics.get().pluginId)
-    }
-}
-
 android {
     namespace = "eu.kanade.tachiyomi"
 
@@ -284,11 +277,6 @@ dependencies {
     // Logging
     implementation(libs.logcat)
 
-    // Crash reports/analytics
-//    "standardImplementation"(platform(libs.firebase.bom))
-//    "standardImplementation"(libs.firebase.analytics)
-//    "standardImplementation"(libs.firebase.crashlytics)
-
     // Shizuku
     implementation(libs.bundles.shizuku)
 
@@ -310,11 +298,6 @@ dependencies {
     testImplementation(libs.kotlinx.coroutines.test)
 
     // SY -->
-    // Firebase (EH)
-    implementation(platform(libs.firebase.bom))
-    implementation(libs.firebase.analytics)
-    implementation(libs.firebase.crashlytics)
-
     // Better logging (EH)
     implementation(sylibs.xlog)
 
