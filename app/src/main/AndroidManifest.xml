@@ -173,6 +173,15 @@
             android:name=".ui.reader.ReaderActivity"
             android:exported="false"
             android:launchMode="singleTask">
+            <!--
+                Target SDK 36 makes Android 16 ignore requested orientation on displays
+                with smallest width >= 600dp, which breaks the reader's rotation setting
+                on tablets. Opt out so the user's orientation preference still applies.
+            -->
+            <property
+                android:name="android.window.PROPERTY_COMPAT_ALLOW_RESTRICTED_RESIZABILITY"
+                android:value="true" />
+
             <intent-filter>
                 <action android:name="com.samsung.android.support.REMOTE_ACTION" />
             </intent-filter>

@@ -139,7 +139,13 @@ class PagerConfig(
         readerPreferences.dualPageRotateToFit
             .register(
                 { dualPageRotateToFit = it },
-                { imagePropertyChangedListener?.invoke() },
+                {
+                    imagePropertyChangedListener?.invoke()
+                    // Rotating a wide page requires a single-page holder. Rebuild the chapter so
+                    // an already-active automatic/fixed double-page layout cannot bypass the
+                    // rotation path.
+                    reloadChapterListener?.invoke(!it)
+                },
             )
 
         readerPreferences.dualPageRotateToFitInvert

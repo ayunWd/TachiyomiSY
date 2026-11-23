@@ -495,6 +495,12 @@ class ReaderActivity : BaseActivity() {
      */
     override fun onResume() {
         super.onResume()
+        // Android 16 and some OEM window managers can restore a large-screen task with a
+        // different display rotation even though the activity's requested orientation is still
+        // set. Re-apply the reader preference when the activity becomes active again.
+        if (viewModel.hasValidArgs) {
+            setOrientation(viewModel.getMangaOrientation(), force = true)
+        }
         viewModel.restartReadTimer()
         setMenuVisibility(viewModel.state.value.menuVisible)
     }
@@ -871,7 +877,7 @@ class ReaderActivity : BaseActivity() {
         if (!force && viewer.config.autoDoublePages) {
             setDoublePageMode(viewer)
         } else {
-            viewer.config.doublePages = doublePages
+            viewer.config.doublePages = doublePages && !viewer.config.dualPageRotateToFit
             viewModel.setDoublePages(viewer.config.doublePages)
         }
         val currentChapter = viewModel.state.value.currentChapter
@@ -891,7 +897,8 @@ class ReaderActivity : BaseActivity() {
         val currentOrientation = resources.configuration.orientation
         // A paired holder renders only its first page in split mode, dropping the sibling.
         viewer.config.doublePages = currentOrientation == Configuration.ORIENTATION_LANDSCAPE &&
-            !viewer.config.dualPageSplit
+            !viewer.config.dualPageSplit &&
+            !viewer.config.dualPageRotateToFit
         viewModel.setDoublePages(viewer.config.doublePages)
     }
 
@@ -1257,9 +1264,9 @@ class ReaderActivity : BaseActivity() {
     /**
      * Forces the user preferred [orientation] on the activity.
      */
-    private fun setOrientation(orientation: Int) {
+    private fun setOrientation(orientation: Int, force: Boolean = false) {
         val newOrientation = ReaderOrientation.fromPreference(orientation)
-        if (newOrientation.flag != requestedOrientation) {
+        if (force || newOrientation.flag != requestedOrientation) {
             requestedOrientation = newOrientation.flag
         }
     }

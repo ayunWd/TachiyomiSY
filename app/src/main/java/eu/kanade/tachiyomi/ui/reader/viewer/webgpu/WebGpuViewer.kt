@@ -1,6 +1,8 @@
 package eu.kanade.tachiyomi.ui.reader.viewer.webgpu
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.Matrix
 import android.graphics.PointF
 import android.graphics.Rect
 import android.os.SystemClock
@@ -57,9 +59,12 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import logcat.LogPriority
 import mihon.app.di.appGraph
+import tachiyomi.core.common.util.system.ImageUtil.toBitmap
 import tachiyomi.core.common.util.system.logcat
 import java.io.FilterInputStream
 import java.lang.ref.WeakReference
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import java.util.TreeSet
 import java.util.concurrent.Executors
 import kotlin.math.abs
@@ -73,6 +78,12 @@ private const val STREAM_WAIT_MS = 1000L
 
 /** Least time between feeds, so a trickle of small reads decodes and uploads in batches. */
 private const val STREAM_BATCH_MS = 33L
+
+private data class PreparedImageFrame(
+    val image: ByteBuffer,
+    val width: Int,
+    val height: Int,
+)
 
 open class WebGpuViewer(
     val activity: ReaderActivity,
@@ -1344,6 +1355,17 @@ open class WebGpuViewer(
             }
             val hdrHeadroom = gainmap?.headroomStops ?: dec.hdrHeadroom
 
+            // The legacy readers rotate wide pages before displaying them. WebGPU receives
+            // decoded pixels directly, so apply the same transformation here for still SDR
+            // pages. HDR/gain-map images keep their native buffer format rather than being
+            // converted through an 8-bit Bitmap.
+            val rotateWidePage = config.dualPageRotateToFit &&
+                !animated &&
+                !dec.isHdr &&
+                gainmap == null &&
+                firstFrame.width > firstFrame.height
+            val preparedFirstFrame = prepareImageFrame(firstFrame, rotateWidePage)
+
             // Only trim when not animated and not in dual page mode
             val trimColors = if (!animated && cropBorders && !isDualPageMode()) {
                 listOf(
@@ -1356,17 +1378,24 @@ open class WebGpuViewer(
 
             // The preview's textures become the image, or frame 0; one since replaced or freed
             // (a settings reset) leaves a fresh image to install instead.
-            val shown = preview?.takeIf { synchronized(lock) { page.imagePage === it && !it.destroyed } }
+            val shown = preview?.takeIf {
+                !rotateWidePage && synchronized(lock) { page.imagePage === it && !it.destroyed }
+            }
             // Only a page the reader hasn't moved re-homes for its trim.
             val wasHome = shown?.atHome == true
             val firstImage = shown?.image?.also {
-                it.update(firstFrame.image)
-                if (!animated) it.createMipMaps(firstFrame.image)
-                it.measure(firstFrame.image, trimColors, trimThreshold = 0.15f, backgroundColor = backgroundColor)
+                it.update(preparedFirstFrame.image)
+                if (!animated) it.createMipMaps(preparedFirstFrame.image)
+                it.measure(
+                    preparedFirstFrame.image,
+                    trimColors,
+                    trimThreshold = 0.15f,
+                    backgroundColor = backgroundColor,
+                )
             } ?: Image(
-                firstFrame.image,
-                firstFrame.width,
-                firstFrame.height,
+                preparedFirstFrame.image,
+                preparedFirstFrame.width,
+                preparedFirstFrame.height,
                 createMipMaps = !animated,
                 trimColors = trimColors,
                 trimThreshold = 0.15f,
@@ -1456,6 +1485,42 @@ open class WebGpuViewer(
             // Nothing took it, normally or not. A preview's image belongs to its page either way.
             orphan?.let { ImagePage.ImageSingle(it).cleanup() }
         }
+    }
+
+    /**
+     * Rotate a decoded SDR frame without changing the decoder's frame ownership. The WebGPU
+     * renderer takes a raw pixel buffer, so this mirrors the Bitmap rotation used by the legacy
+     * reader while preserving the buffer layout expected by [Image].
+     */
+    private fun prepareImageFrame(
+        frame: ImageDecoder.Frame,
+        rotate: Boolean,
+    ): PreparedImageFrame {
+        if (!rotate) {
+            frame.image.rewind()
+            return PreparedImageFrame(frame.image, frame.width, frame.height)
+        }
+
+        val source = frame.toBitmap()
+        val rotated = Bitmap.createBitmap(
+            source,
+            0,
+            0,
+            source.width,
+            source.height,
+            Matrix().apply {
+                postRotate(if (config.dualPageRotateToFitInvert) -90f else 90f)
+            },
+            true,
+        )
+        val pixels = ByteBuffer.allocateDirect(rotated.byteCount).order(ByteOrder.nativeOrder())
+        rotated.copyPixelsToBuffer(pixels)
+        pixels.rewind()
+        val width = rotated.width
+        val height = rotated.height
+        source.recycle()
+        rotated.recycle()
+        return PreparedImageFrame(pixels, width, height)
     }
 
     /** Animates [page] to where a fresh install would place it, e.g. once its trim is known. */
