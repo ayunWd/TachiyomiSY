@@ -4,6 +4,9 @@ on:
    branches:
     - 'release'
 
+permissions:
+  contents: write
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -76,11 +79,20 @@ jobs:
           mv app/build/outputs/apk/release/app-x86-release-unsigned-signed.apk TachiyomiSY-x86.apk
           mv app/build/outputs/apk/release/app-x86_64-release-unsigned-signed.apk TachiyomiSY-x86_64.apk
 
+      - name: Read app version
+        id: app_version
+        shell: bash
+        run: |
+          set -e
+          version=$(sed -n 's/^[[:space:]]*versionName = "\([^"]*\)".*/\1/p' app/build.gradle.kts | head -n 1)
+          test -n "$version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
       - name: Create release
         uses: softprops/action-gh-release@v3
         with:
-          tag_name: ${{ github.run_number }}
-          name: TachiyomiSY
+          tag_name: v${{ steps.app_version.outputs.version }}
+          name: TachiyomiSY v${{ steps.app_version.outputs.version }}
           body: |
             <!-->
             > [!TIP]
@@ -92,7 +104,7 @@ jobs:
             TachiyomiSY-armeabi-v7a.apk
             TachiyomiSY-x86.apk
             TachiyomiSY-x86_64.apk
-          draft: true
+          draft: false
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
