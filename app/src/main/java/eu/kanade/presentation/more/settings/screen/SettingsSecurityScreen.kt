@@ -375,7 +375,6 @@ object SettingsSecurityScreen : SearchableSettings {
         )
     }
     // SY <--
-
 }
 
 private val LockAfterValues = listOf(
